@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Generator, Sequence, Union
 import click
 
 from uvicorn.config import Config
+from uvicorn.statsd.utils import SetCounter
 
 if TYPE_CHECKING:
     from uvicorn.protocols.http.h11_impl import H11Protocol
@@ -43,7 +44,9 @@ class ServerState:
 
     def __init__(self) -> None:
         self.total_requests = 0
-        self.connections: set[Protocols] = set()
+        self.connections: SetCounter[Protocols] = SetCounter(
+            event_name="uvicorn.connection",
+        )
         self.tasks: set[asyncio.Task[None]] = set()
         self.default_headers: list[tuple[bytes, bytes]] = []
 
@@ -62,6 +65,7 @@ class Server:
 
     def run(self, sockets: list[socket.socket] | None = None) -> None:
         self.config.setup_event_loop()
+        self.config.bind_statsd_socket()
         return asyncio.run(self.serve(sockets=sockets))
 
     async def serve(self, sockets: list[socket.socket] | None = None) -> None:

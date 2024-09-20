@@ -22,6 +22,7 @@ from uvicorn.middleware.asgi2 import ASGI2Middleware
 from uvicorn.middleware.message_logger import MessageLoggerMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from uvicorn.middleware.wsgi import WSGIMiddleware
+from uvicorn.statsd import base as statsd
 
 HTTPProtocolType = Literal["auto", "h11", "httptools"]
 WSProtocolType = Literal["auto", "none", "websockets", "wsproto"]
@@ -223,6 +224,7 @@ class Config:
         headers: list[tuple[str, str]] | None = None,
         factory: bool = False,
         h11_max_incomplete_event_size: int | None = None,
+        statsd_host: str | None = None,
     ):
         self.app = app
         self.host = host
@@ -276,6 +278,7 @@ class Config:
         self.reload_dirs_excludes: list[Path] = []
         self.reload_includes: list[str] = []
         self.reload_excludes: list[str] = []
+        self.statsd_host = statsd_host
 
         if (reload_dirs or reload_includes or reload_excludes) and not self.should_reload:
             logger.warning(
@@ -527,3 +530,9 @@ class Config:
     @property
     def should_reload(self) -> bool:
         return isinstance(self.app, str) and self.reload
+
+    def bind_statsd_socket(self) -> None:
+        if not self.statsd_host:
+            return
+
+        statsd.set_socket(self.statsd_host)
